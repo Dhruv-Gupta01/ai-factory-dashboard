@@ -1,126 +1,129 @@
 import React from "react";
-import MetricCard from "./MetricCard";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import { formatMinutes, formatNumber, TickRule } from "./Primitives";
 
-function formatMinutes(minutes) {
-  const hrs = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
-}
-
-export default function DetailPanel({ data, type, onClose }) {
-  if (!data) return null;
-
+function DetailPanelBody({ entity, type, onClose }) {
   const isWorker = type === "worker";
-  const title = isWorker
-    ? `${data.name} (${data.worker_id})`
-    : `${data.name} (${data.station_id})`;
+  const id = isWorker ? entity.worker_id : entity.station_id;
+  const subtitle = isWorker
+    ? `Station ${entity.workstation_id}`
+    : `${(entity.type || "").toUpperCase()}`;
+
+  const stats = isWorker
+    ? [
+        { label: "Active",      value: formatMinutes(entity.active_time_minutes),  accent: "good" },
+        { label: "Idle",        value: formatMinutes(entity.idle_time_minutes),     accent: "warn" },
+        { label: "Utilization", value: `${entity.utilization_percent}%`,            accent: "neutral" },
+        { label: "Units / hr",  value: entity.units_per_hour,                       accent: "neutral" },
+      ]
+    : [
+        { label: "Occupancy",   value: formatMinutes(entity.occupancy_time_minutes), accent: "good" },
+        { label: "Utilization", value: `${entity.utilization_percent}%`,             accent: "neutral" },
+        { label: "Units (7d)",  value: formatNumber(entity.total_units),             accent: "neutral" },
+        { label: "Throughput",  value: `${entity.throughput_rate} u/hr`,             accent: "warn" },
+      ];
+
+  const breakdown = entity.daily_breakdown || [];
+  const maxDaily = Math.max(...breakdown.map((d) => d.units), 1);
+
+  const workerList = !isWorker
+    ? (Array.isArray(entity.assigned_workers)
+        ? entity.assigned_workers
+        : (entity.assigned_workers || "").split(", ").filter(Boolean).map((name, i) => ({ name, worker_id: i, utilization_percent: "—" })))
+    : [];
 
   return (
-    <div className="rounded-lg border bg-white p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-gray-800">{title}</h2>
-        <button
-          onClick={onClose}
-          className="rounded px-3 py-1 text-sm text-gray-500 hover:bg-gray-100"
-        >
-          Close
-        </button>
-      </div>
-
-      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-        {isWorker ? (
-          <>
-            <MetricCard
-              title="Active Time"
-              value={formatMinutes(data.active_time_minutes)}
-              color="green"
-            />
-            <MetricCard
-              title="Idle Time"
-              value={formatMinutes(data.idle_time_minutes)}
-              color="red"
-            />
-            <MetricCard
-              title="Utilization"
-              value={`${data.utilization_percent}%`}
-              color="blue"
-            />
-            <MetricCard
-              title="Units Produced"
-              value={data.total_units}
-              subtitle={`${data.units_per_hour} units/hr`}
-              color="purple"
-            />
-          </>
-        ) : (
-          <>
-            <MetricCard
-              title="Occupancy Time"
-              value={formatMinutes(data.occupancy_time_minutes)}
-              color="green"
-            />
-            <MetricCard
-              title="Utilization"
-              value={`${data.utilization_percent}%`}
-              color="blue"
-            />
-            <MetricCard
-              title="Units Produced"
-              value={data.total_units}
-              color="purple"
-            />
-            <MetricCard
-              title="Throughput"
-              value={`${data.throughput_rate} u/hr`}
-              color="yellow"
-            />
-          </>
-        )}
-      </div>
-
-      {data.daily_breakdown && data.daily_breakdown.length > 0 && (
-        <div>
-          <h3 className="mb-3 text-sm font-semibold text-gray-600">Daily Breakdown</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={data.daily_breakdown}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="date"
-                tick={{ fontSize: 11 }}
-                tickFormatter={(d) => d.slice(5)}
-              />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Bar dataKey="units" fill="#8b5cf6" name="Units" />
-            </BarChart>
-          </ResponsiveContainer>
+    <div className="detail-body">
+      <div className="detail-head">
+        <button className="close-btn" onClick={onClose} aria-label="Close">×</button>
+        <div className="eyebrow">{isWorker ? "Worker profile" : "Workstation profile"}</div>
+        <div className="detail-title-row">
+          <h2 className="detail-title">{entity.name}</h2>
+          <span className="mono dim detail-id">{id}</span>
         </div>
-      )}
+        <div className="detail-sub">{subtitle}</div>
+        <TickRule count={48} />
+      </div>
 
-      {!isWorker && data.assigned_workers && (
-        <div className="mt-4">
-          <h3 className="mb-2 text-sm font-semibold text-gray-600">Assigned Workers</h3>
-          <div className="flex flex-wrap gap-2">
-            {data.assigned_workers.map((w) => (
-              <span
-                key={w.worker_id}
-                className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700"
-              >
-                {w.name}
-              </span>
-            ))}
+      <div className="detail-stats">
+        {stats.map((s) => (
+          <div key={s.label} className="stat-block">
+            <div className="stat-label">{s.label}</div>
+            <div className={`stat-value ${s.accent === "neutral" ? "" : s.accent}`}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {breakdown.length > 0 && (
+        <div className="detail-section">
+          <div className="eyebrow">Daily output · last {breakdown.length} days</div>
+          <div className="day-bars">
+            {breakdown.map((d) => {
+              const h = (d.units / maxDaily) * 100;
+              const isPeak = d.units === maxDaily;
+              const label = d.label || d.date?.slice(5) || "";
+              return (
+                <div key={d.date} className="day-bar">
+                  <div className="day-bar-track">
+                    <div className="day-bar-fill" style={{ height: `${h}%`, background: isPeak ? "var(--accent-good)" : "var(--ink-2)" }} />
+                  </div>
+                  <div className="day-bar-units mono">{d.units}</div>
+                  <div className="day-bar-label">{label}</div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
+
+      {isWorker ? (
+        <div className="detail-section">
+          <div className="eyebrow">Performance signals</div>
+          <ul className="signal-list">
+            <li><span className="signal-key">Utilization</span><span className="signal-val mono">{entity.utilization_percent}%</span></li>
+            <li><span className="signal-key">Units produced</span><span className="signal-val mono">{formatNumber(entity.total_units)}</span></li>
+            <li><span className="signal-key">Pace vs peers</span><span className="signal-val">{entity.units_per_hour > 14 ? "Above median" : entity.units_per_hour > 10 ? "On median" : "Below median"}</span></li>
+            <li><span className="signal-key">Idle pattern</span><span className="signal-val">{entity.idle_time_minutes < 400 ? "Steady" : "Bursty"}</span></li>
+          </ul>
+        </div>
+      ) : (
+        <div className="detail-section">
+          <div className="eyebrow">Assigned crew · {workerList.length}</div>
+          <ul className="crew-list">
+            {workerList.map((w, i) => (
+              <li key={w.worker_id ?? i} className="crew-item">
+                <span className="avatar">
+                  {(w.name || "").split(" ").map((p) => p[0]).join("").slice(0, 2)}
+                </span>
+                <span className="crew-name">{w.name}</span>
+                {w.worker_id && typeof w.worker_id === "string" && (
+                  <span className="mono dim">{w.worker_id}</span>
+                )}
+              </li>
+            ))}
+            {workerList.length === 0 && <li className="dim" style={{ padding: "10px 0" }}>No crew assigned.</li>}
+          </ul>
+        </div>
+      )}
+
+      <div className="detail-foot">
+        <button className="btn-ghost">Export profile</button>
+        {isWorker
+          ? <button className="btn-primary">View full timeline →</button>
+          : <button className="btn-primary">Optimize allocation →</button>
+        }
+      </div>
     </div>
+  );
+}
+
+export default function DetailPanel({ entity, type, onClose }) {
+  const open = !!entity;
+  return (
+    <>
+      <div className={`overlay ${open ? "overlay-open" : ""}`} onClick={onClose} />
+      <aside className={`slide-over ${open ? "slide-over-open" : ""}`} aria-hidden={!open}>
+        {entity && <DetailPanelBody entity={entity} type={type} onClose={onClose} />}
+      </aside>
+    </>
   );
 }

@@ -17,6 +17,7 @@ export function useMetrics(fetchFn, deps = []) {
     } finally {
       setLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
   useEffect(() => {
