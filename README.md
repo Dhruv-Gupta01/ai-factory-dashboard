@@ -28,7 +28,22 @@ A full-stack web application that ingests AI-generated CCTV events from a manufa
 
 ## Quick Start
 
-### With Docker (recommended)
+### Local Development
+
+```bash
+# Terminal 1 - Backend (auto-seeds on first run)
+cd backend && npm install && npm start
+# → http://localhost:3001
+
+# Terminal 2 - Frontend
+cd frontend && npm install && npm run dev
+# → http://localhost:3000
+
+# Terminal 3 - Simulator (optional, sends events every 5s)
+cd simulator && node index.js
+```
+
+### With Docker
 
 ```bash
 docker-compose up --build
@@ -36,27 +51,26 @@ docker-compose up --build
 
 - **Dashboard**: http://localhost:3000
 - **API**: http://localhost:3001
-- **API Docs**: http://localhost:3001/api/health
 
-The database is pre-seeded with 7 days of dummy data on first start. The simulator begins pushing live events automatically.
+### Production Deployment
 
-### Without Docker
+**Backend → Render Web Service**
+1. Connect the `backend/` directory as a Render Web Service.
+2. Set environment variables: `NODE_ENV=production`, `PORT=3001`.
+3. Start command: `node src/index.js`.
 
-```bash
-# Terminal 1 - Backend
-cd backend
-npm install
-npm start
+**Simulator → Render Web Service**
+1. Connect the `simulator/` directory as a separate Render Web Service.
+2. Set `API_URL` to your backend URL (e.g. `https://your-backend.onrender.com`).
+3. Set `INTERVAL_MS=5000` for 5-second event intervals.
+4. The simulator exposes a health endpoint on `PORT` so Render can run it as a Web Service.
 
-# Terminal 2 - Frontend
-cd frontend
-npm install
-npm run dev
+**Frontend → Vercel**
+1. Connect the `frontend/` directory to Vercel.
+2. Set environment variable `VITE_API_URL=https://your-backend.onrender.com/api`.
+3. The `vercel.json` handles SPA routing rewrites automatically.
 
-# Terminal 3 - Simulator (optional)
-cd simulator
-node index.js
-```
+> **Keep-alive**: Add UptimeRobot monitors for both Render URLs (every 5 minutes) to prevent free-tier sleep.
 
 ## Database Schema
 
@@ -220,14 +234,24 @@ Model drift occurs when the CV model's real-world accuracy degrades over time (e
 - **Data partitioning**: Partition the events table by `factory_id` and date for query performance.
 - **Edge computing**: Run lightweight inference on-site, send only structured events (not video) to reduce bandwidth.
 
+## Live Deployment
+
+| Service    | URL                                                                 |
+|------------|---------------------------------------------------------------------|
+| Frontend   | https://ai-factory-dashboard.vercel.app                             |
+| Backend    | https://ai-factory-dashboard-vdkh.onrender.com                      |
+| Simulator  | https://ai-factory-simulator.onrender.com                           |
+
+The backend auto-seeds 7 days of historical data on first boot. The simulator pushes live events every 5 seconds. Both Render services are kept awake via UptimeRobot pings every 5 minutes.
+
 ## Tech Stack
 
-| Component  | Technology                    |
-|------------|-------------------------------|
-| Backend    | Node.js, Express              |
-| Database   | SQLite (better-sqlite3)       |
-| Frontend   | React, Vite, Tailwind CSS     |
-| Charts     | Recharts                      |
-| Simulator  | Node.js (native http)         |
-| Container  | Docker, Docker Compose        |
-| Proxy      | Nginx (in production Docker)  |
+| Component  | Technology                          |
+|------------|-------------------------------------|
+| Backend    | Node.js, Express                    |
+| Database   | SQLite (better-sqlite3)             |
+| Frontend   | React, Vite, Tailwind CSS           |
+| Charts     | Custom SVG (hand-rolled sparklines) |
+| Simulator  | Node.js (native http)               |
+| Hosting    | Render (backend + simulator), Vercel (frontend) |
+| Container  | Docker, Docker Compose (local dev)  |
