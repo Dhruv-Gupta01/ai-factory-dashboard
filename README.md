@@ -238,7 +238,7 @@ Model drift occurs when the CV model's real-world accuracy degrades over time (e
 
 | Service    | URL                                                                 |
 |------------|---------------------------------------------------------------------|
-| Frontend   | https://ai-factory-dashboard.vercel.app                             |
+| Frontend   | https://ai-factory-dashboard-seven.vercel.app                       |
 | Backend    | https://ai-factory-dashboard-vdkh.onrender.com                      |
 | Simulator  | https://ai-factory-simulator.onrender.com                           |
 
