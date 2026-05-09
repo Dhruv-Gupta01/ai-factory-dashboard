@@ -16,11 +16,7 @@ const WORKERS = [
 const EVENT_TYPES = ["working", "idle", "absent", "product_count"];
 
 function randomEvent(worker) {
-  const now = new Date();
-  const minutes = now.getMinutes();
-  const roundedMinutes = Math.floor(minutes / 15) * 15;
-  const timestamp = new Date(now);
-  timestamp.setMinutes(roundedMinutes, 0, 0);
+  const timestamp = new Date();
 
   const rand = Math.random();
   let eventType, count;
@@ -117,6 +113,13 @@ async function run() {
   console.log(`Event Simulator started`);
   console.log(`API: ${API_URL}`);
   console.log(`Interval: ${INTERVAL_MS}ms`);
+
+  // Health check HTTP server so Render can run this as a Web Service
+  const PORT = process.env.PORT || 4000;
+  http.createServer((req, res) => {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ status: "ok", simulator: "running", api: API_URL }));
+  }).listen(PORT, () => console.log(`Health server on port ${PORT}`));
 
   if (SEED_ON_START) {
     console.log("Seeding database...");
