@@ -1,0 +1,11 @@
+{
+  "name": "factory-event-simulator",
+  "version": "1.0.0",
+  "description": "Simulates CCTV AI events for the factory dashboard",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "seed": "node index.js --seed"
+  },
+  "dependencies": {}
+}
